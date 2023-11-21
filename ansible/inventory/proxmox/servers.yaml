@@ -1,0 +1,8 @@
+proxmox_servers:
+  hosts:
+    ansi:
+      ansible_host: 192.168.1.9
+      ansible_user: root
+      ansible_ssh_private_key_file: ~/.ssh/proxmox/id_ed25519
+          # ansible_ssh_pass: mypassword
+        

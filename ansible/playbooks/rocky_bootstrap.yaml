@@ -1,0 +1,233 @@
+---
+- name: Install Softwares on Rocky Linux
+  hosts: proxmox_servers
+  become: true # run tasks woth sudo
+
+  vars:
+    terraform_version: "1.6.4"
+
+  tasks:
+#============================================
+#  MAIN PACKAGES
+# ===========================================
+    - name: Upgrade all packages on servers
+      dnf:
+        name: '*'
+        state: latest
+#============================================
+#  SSH
+# ===========================================
+    - name: Install OpenSSH Server
+      package:
+        name: openssh-server
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: Start and enable OpenSSH service
+      service:
+        name: sshd
+        state: started
+        enabled: yes
+      when: ansible_os_family == 'RedHat'
+#============================================
+#  FIREWALL
+# ===========================================
+    - name: Install firewalld
+      package:
+        name: firewalld
+        state: present
+      when: ansible_os_family == 'RedHat'
+
+    - name: Start and enable firewalld
+      service:
+        name: firewalld
+        state: started
+        enabled: yes
+      when: ansible_os_family == 'RedHat'
+
+    - name: Allow SSH through the firewall
+      firewalld:
+        service: ssh
+        permanent: yes
+        state: enabled
+      when: ansible_os_family == 'RedHat'
+#============================================
+#  DOCKER
+# ===========================================
+    - name: Uninstall old versions
+      dnf:
+        name:
+          - docker-client
+          - docker-client-latest
+          - docker-common
+          - docker-latest
+          - docker-latest-logrotate
+          - docker-logrotate
+          - docker-engine
+        state: absent
+
+    - name: Set up docker repository
+      shell: |
+        sudo yum install -y yum-utils
+        sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+      when: ansible_os_family == 'RedHat'
+
+    - name: Install the latest version of Docker Engine and containerd
+      dnf:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+      notify: Start and enable docker
+
+    - name: Add the current user to the docker group
+      user:
+        name: rocky
+        groups: docker
+        append: yes
+#============================================
+#  GIT
+#============================================
+    - name: Install git
+      dnf:
+        name:
+          - git
+#============================================
+#  TERRAFORM
+#============================================
+    - name: Install Unzip
+      dnf:
+        name:
+          - zip
+
+    - name: Download Terraform binary
+      get_url:
+        url: "https://releases.hashicorp.com/terraform/1.6.4/terraform_1.6.4_linux_amd64.zip"
+        dest: "/tmp/terraform.zip"
+  
+    - name: Unarchive Terraform binary
+      ansible.builtin.unarchive:
+        src: "/tmp/terraform.zip"
+        dest: "/usr/local/bin/"
+        remote_src: true
+        creates: "/usr/local/bin/terraform"
+
+    - name: Intall TF env
+      shell: |
+        git clone --depth=1 https://github.com/tfutils/tfenv.git ~/.tfenv
+        echo 'export PATH=$PATH:$HOME/.tfenv/bin' >> ~/.bashrc
+#============================================
+#  KUBECTL
+#============================================
+    - name: install kubectl
+      shell: |
+        cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+        [kubernetes]
+        name=Kubernetes
+        baseurl=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://pkgs.k8s.io/core:/stable:/v1.28/rpm/repodata/repomd.xml.key
+        EOF
+        sudo yum install -y kubectl
+#============================================
+#  K9S
+#============================================
+    - name: Install K(9)s
+      get_url:
+        url: "https://github.com/derailed/k9s/releases/download/v0.28.2/k9s_Linux_amd64.tar.gz"
+        dest: "/tmp/k9s.tar.gz"
+    
+    - name: Unarchive k9s binary
+      ansible.builtin.unarchive:
+        src: "/tmp/k9s.tar.gz"
+        dest: "/usr/local/bin/"
+        remote_src: true
+        creates: "/usr/local/bin/k9s"
+#============================================
+#  ZSH
+#============================================ 
+    - name: Install zsh
+      ansible.builtin.package:
+        name: zsh
+        state: present
+      become: true
+    
+    - name: Set user shell to zsh
+      ansible.builtin.user:
+        name: "root"
+        shell: /bin/zsh
+      become: true
+
+    - name: Download ohmyzsh
+      get_url:
+        url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+        dest: "/tmp/install.sh"
+        # remote_src: true
+        # mode: '0755'
+
+    - name: Check if /root/.oh-my-zsh exists
+      stat:
+        path: "/root/.oh-my-zsh"
+      register: oh_my_zsh_check
+
+    - name: Install ohmyzsh
+      shell: |
+        /tmp/install.sh
+      when: oh_my_zsh_check.stat.exists == False
+
+    - name: Install PowerLevel10K
+      ansible.builtin.git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: "~/.oh-my-zsh/custom/themes/powerlevel10k"
+        depth: 1
+
+    - name: Export ZSH CUSTOM
+      shell: |
+        sudo chsh -s $(which zsh) $(whoami)
+        echo 'export ZSH_THEME="powerlevel10k/powerlevel10k"' >> ~/.zshrc
+        echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> ~/.zshrc
+        source ~/.zshrc
+
+    # - name: Download NerdFonts
+    #   ansible.builtin.get_url:
+    #     url: https://github.com/ryanoasis/nerd-fonts/releases/download/v2.3.3/Meslo.zip
+    #     dest: "/tmp/Meslo.zip"
+
+
+
+    # - name: Create temp directory
+    #   ansible.builtin.file:
+    #     path: "/tmp/Meslo"
+    #     state: directory
+    #     mode: '0755'
+
+    # - name: Install font files
+    #   ansible.builtin.unarchive:
+    #     src: "/tmp/Meslo.zip"
+    #     dest: "~/.zshrc/Meslo"
+
+    # - name: Move font files to fonts directory
+    #   ansible.builtin.copy:
+    #     src: "/tmp/Meslo.zip"
+    #     dest: /usr/share/fonts/Meslo
+    #     owner: root
+    #   become: true
+
+    - name: Update .zshrc
+      ansible.builtin.lineinfile:
+        path: "~/.zshrc"
+        insertafter: EOF
+        line: "source ~/.oh-my-zsh/custom/themes/powerlevel10k/powerlevel10k.zsh-theme"
+  
+  handlers:
+    - name: Start and enable docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+    
+    
+
+
+    
