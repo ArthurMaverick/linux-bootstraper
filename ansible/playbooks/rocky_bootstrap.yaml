@@ -301,9 +301,31 @@
         dest: "/usr/local/"
         remote_src: true
 #============================================
+#  AWS
+#============================================ 
+
+#============================================
 #  FOLDER STRUCTURE
 #============================================ 
-    
+    - name: Create projects directory
+      file:
+        path: "/root/projects"
+        state: directory
+
+    - name: Create templates directory
+      file:
+        path: "/root/templates"
+        state: directory
+
+    - name: Create scripts directory
+      file:
+        path: "/root/scripts"
+        state: directory
+
+    - name: Create config directory
+      file:
+        path: "/root/config"
+        state: directory
   
   handlers:
     - name: Start and enable docker
