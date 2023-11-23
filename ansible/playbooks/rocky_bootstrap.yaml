@@ -301,10 +301,6 @@
         dest: "/usr/local/"
         remote_src: true
 #============================================
-#  AWS
-#============================================ 
-
-#============================================
 #  FOLDER STRUCTURE
 #============================================ 
     - name: Create projects directory
@@ -327,14 +323,37 @@
         path: "/root/config"
         state: directory
   
+
+#============================================
+#  AWS
+#============================================ 
+    - name: Remove aws cli packages
+      shell: |
+        sudo yum remove awscli
+
+    - name: Download aws cli
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: "/tmp/awscliv2.zip"
+
+    - name: Unarchive awscli binary
+      unarchive:
+        src: "/tmp/awscliv2.zip"
+        dest: "/tmp/"
+        remote_src: true
+
+    - name: Install aws cli
+      shell: |
+        sh /tmp/aws/install
+
   handlers:
-    - name: Start and enable docker
-      systemd:
-        name: docker
-        state: started
-        enabled: yes
-    
-    
+  - name: Start and enable docker
+    systemd:
+      name: docker
+      state: started
+      enabled: yes 
+       
+
 
 
     
