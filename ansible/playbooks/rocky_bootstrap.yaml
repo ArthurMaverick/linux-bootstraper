@@ -145,80 +145,165 @@
         remote_src: true
         creates: "/usr/local/bin/k9s"
 #============================================
+#  FONTS
+#============================================ 
+    - name: Download NerdFonts - regular
+      ansible.builtin.get_url:
+        url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf
+        dest: "/tmp/MesloLGS-NF-Regular.ttf"
+
+    - name: Download NerdFonts - bolds
+      ansible.builtin.get_url:
+        url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf
+        dest: "/tmp/MesloLGS-NF-Bold.ttf"
+    
+    - name: Download NerdFonts - italic
+      ansible.builtin.get_url:
+        url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf
+        dest: "/tmp/MesloLGS-NF-Italic.ttf"
+
+    - name: Download NerdFonts - bold italic
+      ansible.builtin.get_url:
+        url:  https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf
+        dest: "/tmp/MesloLGS-NF-Bold-Italic.ttf"
+
+    - name: Move font files to fonts directory - regular
+      ansible.builtin.copy:
+        src: "/tmp/MesloLGS-NF-Regular.ttf"
+        dest: /usr/share/fonts/
+        owner: root
+        remote_src: true
+
+    - name: Move font files to fonts directory - bolds
+      ansible.builtin.copy:
+        src: "/tmp/MesloLGS-NF-Bold.ttf"
+        dest: /usr/share/fonts/
+        owner: root
+        remote_src: true
+    
+    - name: Move font files to fonts directory - italic
+      ansible.builtin.copy:
+        src: "/tmp/MesloLGS-NF-Italic.ttf"
+        dest: /usr/share/fonts/
+        owner: root
+        remote_src: true
+
+    - name: Move font files to fonts directory - bold italic
+      ansible.builtin.copy:
+        src: "/tmp/MesloLGS-NF-Bold-Italic.ttf"
+        dest: /usr/share/fonts/
+        owner: root
+        remote_src: true
+
+    - name: Install Nerdfonts - all
+      get_url:
+        url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v2.3.3/SourceCodePro.zip"
+        dest: "/tmp/SourceCodePro.zip"
+
+    - name: Unarchive Terraform binary
+      ansible.builtin.unarchive:
+        src: "/tmp/SourceCodePro.zip"
+        dest: "/usr/share/fonts/"
+        remote_src: true
+
+    - name: install fonts config
+      dnf:
+        name:
+          - fontconfig
+    
+    - name: refresh fonts
+      shell: |
+        fc-cache ~/.local/share/fonts
+#============================================
 #  ZSH
 #============================================ 
-    - name: Install zsh
-      ansible.builtin.package:
-        name: zsh
-        state: present
-      become: true
-    
-    - name: Set user shell to zsh
-      ansible.builtin.user:
-        name: "root"
-        shell: /bin/zsh
-      become: true
-
-    - name: Download ohmyzsh
-      get_url:
-        url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
-        dest: "/tmp/install.sh"
-        # remote_src: true
-        # mode: '0755'
+    - name: Install zsh packages
+      dnf:
+        name:
+          - zsh
+          - util-linux-user
+        state: latest
 
     - name: Check if /root/.oh-my-zsh exists
       stat:
         path: "/root/.oh-my-zsh"
       register: oh_my_zsh_check
 
-    - name: Install ohmyzsh
+    - name: Install zsh packages
       shell: |
-        /tmp/install.sh
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
       when: oh_my_zsh_check.stat.exists == False
+    
+    - name: Set user shell to zsh
+      user:
+        name: "root"
+        shell: /usr/bin/zsh
 
-    - name: Install PowerLevel10K
-      ansible.builtin.git:
+    - name: Install powerlevel10k
+      git:
         repo: https://github.com/romkatv/powerlevel10k.git
-        dest: "~/.oh-my-zsh/custom/themes/powerlevel10k"
-        depth: 1
+        dest: ~/.oh-my-zsh/themes/powerlevel10k
+        version: master
+        update: yes
+    
+    - name: write .zshrc for users
+      copy:
+        src: "~/Documentos/stater/ansible/files/.zshrc.j2"
+        dest: '~/.zshrc'
+        backup: yes
+        # owner: 'root'
+        # group: 'root'
+        # mode: 0600
+    
+    - name: write .p10k.zsh for users
+      copy:
+        src: "~/Documentos/stater/ansible/files/p10k.zsh"
+        dest: '~/.p10k.zsh'
+        backup: yes
+        owner: root
+        group: root
+        mode: '0600'
+    
+    - name: clone zsh-autosuggestions for users
+      git:
+        repo: 'https://github.com/zsh-users/zsh-autosuggestions.git'
+        version: master
+        dest: '~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'
+      # become: yes
+      # become_user: '{{ item.username }}'
+      
+    - name: clone zsh-syntax-highlighting for users
+      git:
+        repo: 'https://github.com/zsh-users/zsh-syntax-highlighting.git'
+        version: master
+        dest: '~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting'
+      # become: yes
+      # become_user: '{{ item.username }}'
 
-    - name: Export ZSH CUSTOM
-      shell: |
-        sudo chsh -s $(which zsh) $(whoami)
-        echo 'export ZSH_THEME="powerlevel10k/powerlevel10k"' >> ~/.zshrc
-        echo '[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh' >> ~/.zshrc
-        source ~/.zshrc
+    - name: Restart zsh
+      command: zsh -c "source ~/.zshrc"
+#============================================
+#  GO
+#============================================ 
+    - name: Clear go files
+      file:
+        path: /usr/local/go
+        state: absent
 
-    # - name: Download NerdFonts
-    #   ansible.builtin.get_url:
-    #     url: https://github.com/ryanoasis/nerd-fonts/releases/download/v2.3.3/Meslo.zip
-    #     dest: "/tmp/Meslo.zip"
+    - name: Download Golang
+      get_url:
+        url: "https://go.dev/dl/go1.21.4.linux-amd64.tar.gz"
+        dest: "/tmp/go1.21.4.linux-amd64.tar.gz"
 
-
-
-    # - name: Create temp directory
-    #   ansible.builtin.file:
-    #     path: "/tmp/Meslo"
-    #     state: directory
-    #     mode: '0755'
-
-    # - name: Install font files
-    #   ansible.builtin.unarchive:
-    #     src: "/tmp/Meslo.zip"
-    #     dest: "~/.zshrc/Meslo"
-
-    # - name: Move font files to fonts directory
-    #   ansible.builtin.copy:
-    #     src: "/tmp/Meslo.zip"
-    #     dest: /usr/share/fonts/Meslo
-    #     owner: root
-    #   become: true
-
-    - name: Update .zshrc
-      ansible.builtin.lineinfile:
-        path: "~/.zshrc"
-        insertafter: EOF
-        line: "source ~/.oh-my-zsh/custom/themes/powerlevel10k/powerlevel10k.zsh-theme"
+    - name: Unarchive Golang binary
+      unarchive:
+        src: /tmp/go1.21.4.linux-amd64.tar.gz
+        dest: "/usr/local/"
+        remote_src: true
+#============================================
+#  FOLDER STRUCTURE
+#============================================ 
+    
   
   handlers:
     - name: Start and enable docker
