@@ -3,8 +3,8 @@
   hosts: proxmox_servers
   become: true # run tasks woth sudo
 
-  vars:
-    terraform_version: "1.6.4"
+  # vars:
+  #   terraform_version: "1.6.4"
 
   tasks:
 #============================================
@@ -106,11 +106,11 @@
         dest: "/tmp/terraform.zip"
   
     - name: Unarchive Terraform binary
-      ansible.builtin.unarchive:
+      unarchive:
         src: "/tmp/terraform.zip"
-        dest: "/usr/local/bin/"
+        dest: "/usr/bin/"
         remote_src: true
-        creates: "/usr/local/bin/terraform"
+        creates: "/usr/bin/terraform"
 
     - name: Intall TF env
       shell: |
@@ -141,9 +141,9 @@
     - name: Unarchive k9s binary
       ansible.builtin.unarchive:
         src: "/tmp/k9s.tar.gz"
-        dest: "/usr/local/bin/"
+        dest: "/usr/bin/"
         remote_src: true
-        creates: "/usr/local/bin/k9s"
+        creates: "/usr/bin/k9s"
 #============================================
 #  FONTS
 #============================================ 
@@ -322,8 +322,6 @@
       file:
         path: "/root/config"
         state: directory
-  
-
 #============================================
 #  AWS
 #============================================ 
@@ -341,19 +339,54 @@
         src: "/tmp/awscliv2.zip"
         dest: "/tmp/"
         remote_src: true
+    
+    - name: Check if exists
+      stat:
+        path: "/usr/local/aws-cli/v2/current"
+      register: aws_cli
 
     - name: Install aws cli
       shell: |
         sh /tmp/aws/install
+      when: aws_cli.stat.exists == False
 
-  handlers:
-  - name: Start and enable docker
-    systemd:
-      name: docker
-      state: started
-      enabled: yes 
-       
+    # - name: Install aws-cli
+    #   shell: |
+    #     yum install python3 -y
+    #     yum install python3-pip -y
+    #     sudo pip3 install awscli
+#============================================
+#  AWS VAULT
+#============================================ 
+    - name: Download aws vault
+      get_url:
+        url: https://github.com/99designs/aws-vault/releases/download/v7.2.0/aws-vault-linux-amd64
+        dest: "/tmp/aws-vault"
 
+    - name: Move file for to be executed
+      copy:
+        src: "/tmp/aws-vault"
+        dest: "/usr/bin/aws-vault"
+        mode: a+x
+        remote_src: true
+#============================================
+#  NEO VIM
+#============================================   
+  #   - name: Install nvim
+  #     dnf:
+  #       name: 
+  #         - epel-release
+  #         - neovim
 
+  #   - name: Install nvim config
+  #     shell:
+  #       git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1 && nvim
+
+  # handlers:
+  #   - name: Start and enable docker
+  #     systemd:
+  #       name: docker
+  #       state: started
+  #       enabled: yes 
 
     
