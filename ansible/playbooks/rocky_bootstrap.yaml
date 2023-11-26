@@ -3,8 +3,6 @@
   hosts: proxmox_servers
   become: true # run tasks woth sudo
 
-  # vars:
-  #   terraform_version: "1.6.4"
 
   tasks:
 #============================================
@@ -148,62 +146,62 @@
 #  FONTS
 #============================================ 
     - name: Download NerdFonts - regular
-      ansible.builtin.get_url:
+      get_url:
         url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf
         dest: "/tmp/MesloLGS-NF-Regular.ttf"
 
     - name: Download NerdFonts - bolds
-      ansible.builtin.get_url:
+      get_url:
         url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf
         dest: "/tmp/MesloLGS-NF-Bold.ttf"
     
     - name: Download NerdFonts - italic
-      ansible.builtin.get_url:
+      get_url:
         url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf
         dest: "/tmp/MesloLGS-NF-Italic.ttf"
 
     - name: Download NerdFonts - bold italic
-      ansible.builtin.get_url:
+      get_url:
         url:  https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf
         dest: "/tmp/MesloLGS-NF-Bold-Italic.ttf"
 
     - name: Move font files to fonts directory - regular
-      ansible.builtin.copy:
+      copy:
         src: "/tmp/MesloLGS-NF-Regular.ttf"
-        dest: /usr/share/fonts/
+        dest: "~/.local/share/fonts/"
         owner: root
         remote_src: true
 
     - name: Move font files to fonts directory - bolds
-      ansible.builtin.copy:
+      copy:
         src: "/tmp/MesloLGS-NF-Bold.ttf"
-        dest: /usr/share/fonts/
+        dest: "~/.local/share/fonts/"
         owner: root
         remote_src: true
     
     - name: Move font files to fonts directory - italic
-      ansible.builtin.copy:
+      copy:
         src: "/tmp/MesloLGS-NF-Italic.ttf"
-        dest: /usr/share/fonts/
+        dest: "~/.local/share/fonts/"
         owner: root
         remote_src: true
 
     - name: Move font files to fonts directory - bold italic
-      ansible.builtin.copy:
+      copy:
         src: "/tmp/MesloLGS-NF-Bold-Italic.ttf"
-        dest: /usr/share/fonts/
+        dest: "~/.local/share/fonts/"
         owner: root
         remote_src: true
 
     - name: Install Nerdfonts - all
       get_url:
-        url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v2.3.3/SourceCodePro.zip"
-        dest: "/tmp/SourceCodePro.zip"
+        url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.0/FiraCode.zip"
+        dest: "/tmp/FiraCode.zip"
 
-    - name: Unarchive Terraform binary
-      ansible.builtin.unarchive:
-        src: "/tmp/SourceCodePro.zip"
-        dest: "/usr/share/fonts/"
+    - name: Unarchive firecode binary
+      unarchive:
+        src: "/tmp/FiraCode.zip"
+        dest: "~/.local/share/fonts/"
         remote_src: true
 
     - name: install fonts config
@@ -248,7 +246,7 @@
     
     - name: write .zshrc for users
       copy:
-        src: "~/Documentos/stater/ansible/files/.zshrc.j2"
+        src: "../files/.zshrc.j2"
         dest: '~/.zshrc'
         backup: yes
         # owner: 'root'
@@ -257,7 +255,7 @@
     
     - name: write .p10k.zsh for users
       copy:
-        src: "~/Documentos/stater/ansible/files/p10k.zsh"
+        src: "../files/p10k.zsh"
         dest: '~/.p10k.zsh'
         backup: yes
         owner: root
@@ -350,11 +348,6 @@
         sh /tmp/aws/install
       when: aws_cli.stat.exists == False
 
-    # - name: Install aws-cli
-    #   shell: |
-    #     yum install python3 -y
-    #     yum install python3-pip -y
-    #     sudo pip3 install awscli
 #============================================
 #  AWS VAULT
 #============================================ 
@@ -372,21 +365,65 @@
 #============================================
 #  NEO VIM
 #============================================   
-  #   - name: Install nvim
-  #     dnf:
-  #       name: 
-  #         - epel-release
-  #         - neovim
+    - name: Install nvim
+      dnf:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - epel-release
+        # - neovim
+        - compat-lua-libs
+        - libtermkey
+        - libtree-sitter
+        - libvterm
+        - luajit
+        - luajit2.1-luv
+        - msgpack
+        - unibilium
+        - xsel
 
-  #   - name: Install nvim config
-  #     shell:
-  #       git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1 && nvim
+    - name: Install nvim packages 1
+      get_url:
+        url: https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz
+        dest: "/tmp/nvim-linux64.tar.gz"
 
-  # handlers:
-  #   - name: Start and enable docker
-  #     systemd:
-  #       name: docker
-  #       state: started
-  #       enabled: yes 
+    - name: Unarchive nvim binary
+      unarchive:
+        src: "/tmp/nvim-linux64.tar.gz"
+        dest: "~/.local/share/"
+        creates: "~/.local/share/nvim-linux64"
+        remote_src: true
+
+    - name: reference nvim bin
+      shell: |
+        cd /usr/bin/
+        ln -sf ~/.local/share/nvim-linux64/bin/nvim nvim
+
+    - name: Install nvim helpers
+      dnf:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - libtool
+        - autoconf
+        - automake
+        - cmake
+        - gcc
+        - gcc-c++
+        - make
+        - pkgconfig
+        - patch
+        - gettext
+
+    - name: Install nvim config
+      shell:
+        git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1 && nvim
+
+  handlers:
+    - name: Start and enable docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes 
 
     
