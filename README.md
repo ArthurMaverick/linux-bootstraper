@@ -32,7 +32,7 @@ This Ansible playbook automates the installation of various services and tools c
 
 3. Run the Ansible playbook:
    ```bash
-   ansible-playbook -i inventory playbook.yml
+   ansible-playbook -i inventory/proxmox/servers.yaml playbooks/rocky_bootstrap.yaml -v
    ```
 
 

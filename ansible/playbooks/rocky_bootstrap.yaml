@@ -8,7 +8,7 @@
 #============================================
 #  MAIN PACKAGES
 # ===========================================
-    - name: Upgrade all packages on servers
+    - name: "Upgrade all packages on servers"
       dnf:
         name: '*'
         state: latest
@@ -26,7 +26,6 @@
         name: sshd
         state: started
         enabled: yes
-      when: ansible_os_family == 'RedHat'
 #============================================
 #  FIREWALL
 # ===========================================
@@ -34,21 +33,18 @@
       package:
         name: firewalld
         state: present
-      when: ansible_os_family == 'RedHat'
 
     - name: Start and enable firewalld
       service:
         name: firewalld
         state: started
         enabled: yes
-      when: ansible_os_family == 'RedHat'
 
     - name: Allow SSH through the firewall
       firewalld:
         service: ssh
         permanent: yes
         state: enabled
-      when: ansible_os_family == 'RedHat'
 #============================================
 #  DOCKER
 # ===========================================
@@ -68,7 +64,6 @@
       shell: |
         sudo yum install -y yum-utils
         sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-      when: ansible_os_family == 'RedHat'
 
     - name: Install the latest version of Docker Engine and containerd
       dnf:
@@ -320,6 +315,28 @@
       file:
         path: "/root/config"
         state: directory
+
+    - name: Create config directory
+      file:
+        path: "/root/projects/{{ item }}"
+        state: directory
+      loop:
+        - blackRock
+        - eliteGaming
+        - floboto
+        - javelin
+        - mikeCroak
+        - SFJ
+        - solidVentures
+        - stackOverdrive
+        - tunnedCare
+        - thedrop
+        - vinnove
+        - vironix
+        - scaleUp
+        - poolService
+        - TorchNetworks
+    
 #============================================
 #  AWS
 #============================================ 
@@ -404,6 +421,7 @@
         name: "{{ item }}"
         state: present
       with_items:
+        - net-tools
         - libtool
         - autoconf
         - automake
@@ -415,9 +433,15 @@
         - patch
         - gettext
 
+    - name: Check if nvim config exists
+      stat:
+        path: "/root/.config/nvim"
+      register: nvim_config
+
     - name: Install nvim config
       shell:
         git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1 && nvim
+      when: nvim_config.stat.exists == False
 
   handlers:
     - name: Start and enable docker
