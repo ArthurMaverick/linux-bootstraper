@@ -366,6 +366,26 @@
       when: aws_cli.stat.exists == False
 
 #============================================
+#  DOCTL
+#============================================
+    - name: Download digital ocean cli
+      get_url:
+        url: https://github.com/digitalocean/doctl/releases/download/v1.100.0/doctl-1.100.0-linux-amd64.tar.gz
+        dest: "/tmp/doctl-1.100.0-linux-amd64.tar.gz"
+
+    - name: Unarchive doctl binary
+      unarchive:
+        src: "/tmp/doctl-1.100.0-linux-amd64.tar.gz"
+        dest: "/tmp/"
+        remote_src: true
+
+    - name: Move file for to be executed
+      copy:
+        src: "/tmp/doctl"
+        dest: "/usr/bin/doctl"
+        mode: a+x
+        remote_src: true
+#============================================
 #  AWS VAULT
 #============================================ 
     - name: Download aws vault
