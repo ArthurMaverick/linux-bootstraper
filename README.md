@@ -24,8 +24,8 @@ This Ansible playbook automates the installation of various services and tools c
 
 1. Clone this repository to your local machine.
    ```bash
-   git clone <repository-url>
-   cd ansible-dev-environment
+   git clone https://github.com/ArthurMaverick/linux-bootstraper.git
+   cd linux-bootstraper
    ```
 
 2. Update the `inventory` file with your target hosts.
