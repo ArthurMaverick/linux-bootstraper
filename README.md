@@ -14,6 +14,7 @@ This Ansible playbook automates the installation of various services and tools c
   - [AWS Configuration](#aws-configuration)
   - [AWS Vault](#aws-vault)
   - [NeoVim Configuration](#neovim-configuration)
+  - [Pre Commit](#pre-commit)
 
 ## Prerequisites
 
@@ -75,3 +76,5 @@ Installs and configures AWS Vault for secure AWS credentials management.
 
 (Include additional information about NeoVim configuration if applicable.)
 
+## Pre Commit
+Install and pre-commit to keep best practices on terraform and yaml and golang services
