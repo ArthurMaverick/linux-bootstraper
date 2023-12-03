@@ -469,5 +469,15 @@
         name: docker
         state: started
         enabled: yes 
+#============================================
+#  PRE COMMIT
+#============================================ 
+    - name: Donwload pip repository
+      get_url:
+        url: curl https://bootstrap.pypa.io/get-pip.py
+        dest: "/tmp/get-pip.py"
 
-    
+    - name: install pip
+      shell |: 
+        python3 /tmp/get-pip.py
+        pip install pre-commit
