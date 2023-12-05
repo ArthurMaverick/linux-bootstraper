@@ -474,10 +474,32 @@
 #============================================ 
     - name: Donwload pip repository
       get_url:
-        url: curl https://bootstrap.pypa.io/get-pip.py
+        url: https://bootstrap.pypa.io/get-pip.py
         dest: "/tmp/get-pip.py"
 
     - name: install pip
       shell |: 
         python3 /tmp/get-pip.py
         pip install pre-commit
+
+#============================================
+#  TF DOCS
+#============================================
+    - name: Donwload tf docs repository
+      get_url:
+        url:  https://github.com/terraform-docs/terraform-docs/releases/download/v0.16.0/terraform-docs-v0.16.0-linux-amd64.tar.gz
+        dest: "/tmp/terraform-docs-v0.16.0-linux-amd64.tar.gz"
+
+    - name: Unarchive tfdocs binary
+      unarchive:
+        src: "/tmp/terraform-docs-v0.16.0-linux-amd64.tar.gz"
+        dest: "/usr/bin/"
+        creates: "/usr/bin/terraform-docs"
+        remote_src: true
+
+#============================================
+#  TF LINT
+#============================================
+    - name: Install tf lint
+      shell: |
+        curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
