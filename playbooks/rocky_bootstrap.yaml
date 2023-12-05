@@ -503,3 +503,16 @@
     - name: Install tf lint
       shell: |
         curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+#============================================
+#  HELM
+#============================================
+    - name: Donwload helm repository
+      get_url:
+        url:  https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: "/tmp/get_helm.sh"
+    
+    - name: Install helm
+      shell: |
+        chmod 700 /tmp/get_helm.sh
+        sh /tmp/get_helm.sh
