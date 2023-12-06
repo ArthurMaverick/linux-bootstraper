@@ -516,3 +516,11 @@
       shell: |
         chmod 700 /tmp/get_helm.sh
         sh /tmp/get_helm.sh
+#============================================
+#  OPEN VPN
+#============================================
+    - name: "install openvpn"
+      dnf:
+        name:
+          - openvpn
+        state: latest
