@@ -54,6 +54,7 @@ The playbook installs the following services:
 - **Folder Structure**: Creates project directories.
 - **AWS CLI and AWS Vault**: Installs and configures the AWS CLI and AWS Vault.
 - **NeoVim**: (Include additional information about NeoVim configuration.)
+- **gcloud**: Install google cloud CLI.
 
 ## Folder Structure
 
