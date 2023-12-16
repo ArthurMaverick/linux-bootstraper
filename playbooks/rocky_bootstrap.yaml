@@ -524,3 +524,23 @@
         name:
           - openvpn
         state: latest
+#============================================
+#  INSTALL GOOGLE CLOUD
+#============================================
+    - name: Download google cloud
+      get_url:
+        url: "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-457.0.0-linux-x86_64.tar.gz"
+        dest: "/tmp/google-cloud-cli-457.0.0-linux-x86_64.tar.gz"
+
+
+    - name: Unarchive google cloud script
+      unarchive:
+        src: "/tmp/google-cloud-cli-457.0.0-linux-x86_64.tar.gz"
+        dest: "/tmp/"
+        # creates: "/usr/bin/terraform-docs"
+        remote_src: true
+    
+    - name: Install google cloud
+      shell: |
+        chmod 700 /tmp/google-cloud-sdk/install.sh
+        sh /tmp/google-cloud-sdk/install.sh
