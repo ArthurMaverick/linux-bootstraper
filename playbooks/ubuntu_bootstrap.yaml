@@ -1,0 +1,513 @@
+---
+- name: Install Software on Ubuntu
+  hosts: proxmox_servers
+  become: true
+
+  tasks:
+    #============================================
+    #  MAIN PACKAGES
+    #============================================
+    - name: "Upgrade all packages on servers"
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    #============================================
+    #  SSH
+    #============================================
+    - name: Install OpenSSH Server
+      apt:
+        name: openssh-server
+        state: present
+      when: ansible_os_family == 'Debian'
+
+    - name: Start and enable OpenSSH service
+      service:
+        name: ssh
+        state: started
+        enabled: yes
+
+    #============================================
+    #  FIREWALL
+    #============================================
+    - name: Install ufw
+      apt:
+        name: ufw
+        state: present
+
+    - name: Allow SSH through the firewall
+      ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: Enable ufw
+      ufw:
+        state: enabled
+
+    #============================================
+    #  DOCKER
+    #============================================
+    - name: Uninstall old versions
+      apt:
+        name:
+          - docker.io
+        state: absent
+
+    - name: Set up Docker repository
+      shell: |
+        sudo apt-get update
+        sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+        sudo apt-get update
+
+    - name: Install the latest version of Docker Engine and containerd
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+      notify: Start and enable docker
+
+    - name: Add the current user to the docker group
+      user:
+        name: rocky
+        groups: docker
+        append: yes
+
+    #============================================
+    #  GIT
+    #============================================
+    - name: Install git
+      apt:
+        name: git
+        state: present
+
+    #============================================
+    #  TERRAFORM
+    #============================================
+    - name: Install Unzip
+      apt:
+        name: unzip
+        state: present
+
+    - name: Download Terraform binary
+      get_url:
+        url: "https://releases.hashicorp.com/terraform/1.6.4/terraform_1.6.4_linux_amd64.zip"
+        dest: "/tmp/terraform.zip"
+
+    - name: Unarchive Terraform binary
+      unarchive:
+        src: "/tmp/terraform.zip"
+        dest: "/usr/local/bin/"
+        remote_src: true
+        creates: "/usr/local/bin/terraform"
+
+    - name: Install TF env
+      shell: |
+        git clone --depth=1 https://github.com/tfutils/tfenv.git ~/.tfenv
+        echo 'export PATH=$PATH:$HOME/.tfenv/bin' >> ~/.bashrc
+
+    #============================================
+    #  KUBECTL
+    #============================================
+    - name: Install kubectl
+      apt:
+        name: apt-transport-https
+        state: present
+
+    - name: Download Google Cloud public signing key
+      shell: |
+        curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+
+    - name: Add Kubernetes apt repository
+      shell: |
+        echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+        sudo apt-get update
+
+    - name: Install kubectl
+      apt:
+        name: kubectl
+        state: present
+
+    #============================================
+    #  K9S
+    #============================================
+    - name: Install K(9)s
+      get_url:
+        url: "https://github.com/derailed/k9s/releases/download/v0.28.2/k9s_Linux_amd64.tar.gz"
+        dest: "/tmp/k9s.tar.gz"
+
+    - name: Unarchive k9s binary
+      ansible.builtin.unarchive:
+        src: "/tmp/k9s.tar.gz"
+        dest: "/usr/local/bin/"
+        remote_src: true
+        creates: "/usr/local/bin/k9s"
+
+    #============================================
+    #  FONTS
+    #============================================
+    - name: Download NerdFonts - regular
+      get_url:
+        url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Regular.ttf
+        dest: "/tmp/MesloLGS-NF-Regular.ttf"
+
+    - name: Download NerdFonts - bolds
+      get_url:
+        url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold.ttf
+        dest: "/tmp/MesloLGS-NF-Bold.ttf"
+
+    - name: Download NerdFonts - italic
+      get_url:
+        url: https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Italic.ttf
+        dest: "/tmp/MesloLGS-NF-Italic.ttf"
+
+    - name: Download NerdFonts - bold italic
+      get_url:
+        url:  https://github.com/romkatv/powerlevel10k-media/raw/master/MesloLGS%20NF%20Bold%20Italic.ttf
+        dest: "/tmp/MesloLGS-NF-Bold-Italic.ttf"
+
+    - name: Move font files to fonts directory - regular
+      copy:
+        src: "/tmp/MesloLGS-NF-Regular.ttf"
+        dest: "~/.local/share/fonts/"
+        owner: root
+        remote_src: true
+
+    - name: Move font files to fonts directory - bolds
+      copy:
+        src: "/tmp/MesloLGS-NF-Bold.ttf"
+        dest: "~/.local/share/fonts/"
+        owner: root
+        remote_src: true
+
+    - name: Move font files to fonts directory - italic
+      copy:
+        src: "/tmp/MesloLGS-NF-Italic.ttf"
+        dest: "~/.local/share/fonts/"
+        owner: root
+        remote_src: true
+
+    - name: Move font files to fonts directory - bold italic
+      copy:
+        src: "/tmp/MesloLGS-NF-Bold-Italic.ttf"
+        dest: "~/.local/share/fonts/"
+        owner: root
+        remote_src: true
+
+    - name: Install Nerdfonts - all
+      get_url:
+        url: "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.1.0/FiraCode.zip"
+        dest: "/tmp/FiraCode.zip"
+
+    - name: Unarchive FiraCode fonts
+      unarchive:
+        src: "/tmp/FiraCode.zip"
+        dest: "~/.local/share/fonts/"
+        remote_src: true
+
+    - name: Install fontconfig
+      apt:
+        name: fontconfig
+        state: present
+
+    - name: Refresh fonts
+      shell: |
+        fc-cache -f -v
+
+    #============================================
+    #  ZSH
+    #============================================
+    - name: Install zsh packages
+      apt:
+        name:
+          - zsh
+          - util-linux
+        state: latest
+
+    - name: Check if /root/.oh-my-zsh exists
+      stat:
+        path: "/root/.oh-my-zsh"
+      register: oh_my_zsh_check
+
+    - name: Install Oh My Zsh
+      shell: |
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+      when: oh_my_zsh_check.stat.exists == False
+
+    - name: Set user shell to zsh
+      user:
+        name: "root"
+        shell: /usr/bin/zsh
+
+    - name: Install powerlevel10k
+      git:
+        repo: https://github.com/romkatv/powerlevel10k.git
+        dest: ~/.oh-my-zsh/themes/powerlevel10k
+        version: master
+        update: yes
+
+    - name: Write .zshrc for users
+      copy:
+        src: "../files/.zshrc.j2"
+        dest: '~/.zshrc'
+        backup: yes
+
+    - name: Write .p10k.zsh for users
+      copy:
+        src: "../files/p10k.zsh"
+        dest: '~/.p10k.zsh'
+        backup: yes
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Clone zsh-autosuggestions for users
+      git:
+        repo: 'https://github.com/zsh-users/zsh-autosuggestions.git'
+        version: master
+        dest: '~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'
+
+    - name: Clone zsh-syntax-highlighting for users
+      git:
+        repo: 'https://github.com/zsh-users/zsh-syntax-highlighting.git'
+        version: master
+        dest: '~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting'
+
+    #============================================
+    #  GO
+    #============================================
+    - name: Clear go files
+      file:
+        path: /usr/local/go
+        state: absent
+
+    - name: Download Golang
+      get_url:
+        url: "https://go.dev/dl/go1.21.4.linux-amd64.tar.gz"
+        dest: "/tmp/go1.21.4.linux-amd64.tar.gz"
+
+    - name: Unarchive Golang binary
+      unarchive:
+        src: /tmp/go1.21.4.linux-amd64.tar.gz
+        dest: "/usr/local/"
+        remote_src: true
+
+    #============================================
+    #  FOLDER STRUCTURE
+    #============================================
+    - name: Create projects directory
+      file:
+        path: "/root/projects"
+        state: directory
+
+    - name: Create templates directory
+      file:
+        path: "/root/templates"
+        state: directory
+
+    - name: Create scripts directory
+      file:
+        path: "/root/scripts"
+        state: directory
+
+    - name: Create config directory
+      file:
+        path: "/root/config"
+        state: directory
+
+    - name: Create project subdirectories
+      file:
+        path: "/root/projects/{{ item }}"
+        state: directory
+      loop:
+        - neptune
+        - cogiliti
+        - het
+        - sfj
+        - reygiv
+        - brilion
+        - stackoverdrive
+        - alpenspruce
+        - coherence  
+
+    #============================================
+    #  AWS
+    #============================================
+    - name: Remove aws cli packages
+      shell: |
+        sudo apt-get remove -y awscli
+
+    - name: Download AWS CLI
+      get_url:
+        url: https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip
+        dest: "/tmp/awscliv2.zip"
+
+    - name: Unarchive AWS CLI binary
+      unarchive:
+        src: "/tmp/awscliv2.zip"
+        dest: "/tmp/"
+        remote_src: true
+
+    - name: Check if AWS CLI exists
+      stat:
+        path: "/usr/local/aws-cli/v2/current"
+      register: aws_cli
+
+    - name: Install AWS CLI
+      shell: |
+        sudo /tmp/aws/install
+      when: aws_cli.stat.exists == False
+
+    #============================================
+    #  DOCTL
+    #============================================
+    - name: Download Digital Ocean CLI
+      get_url:
+        url: https://github.com/digitalocean/doctl/releases/download/v1.100.0/doctl-1.100.0-linux-amd64.tar.gz
+        dest: "/tmp/doctl-1.100.0-linux-amd64.tar.gz"
+
+    - name: Unarchive doctl binary
+      unarchive:
+        src: "/tmp/doctl-1.100.0-linux-amd64.tar.gz"
+        dest: "/tmp/"
+        remote_src: true
+
+    - name: Move doctl executable
+      copy:
+        src: "/tmp/doctl"
+        dest: "/usr/local/bin/doctl"
+        mode: a+x
+        remote_src: true
+
+    #============================================
+    #  AWS VAULT
+    #============================================
+    - name: Download AWS Vault
+      get_url:
+        url: https://github.com/99designs/aws-vault/releases/download/v7.2.0/aws-vault-linux-amd64
+        dest: "/tmp/aws-vault"
+
+    - name: Move aws-vault executable
+      copy:
+        src: "/tmp/aws-vault"
+        dest: "/usr/local/bin/aws-vault"
+        mode: a+x
+        remote_src: true
+
+    #============================================
+    #  NEO VIM
+    #============================================
+    - name: Install Neovim dependencies
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - software-properties-common
+        - libtermkey-dev
+        - libvterm-dev
+        - luajit
+        - luajit-5.1-dev
+        - libmsgpack-dev
+        - unibilium-dev
+        - xsel
+
+    - name: Install Neovim
+      apt:
+        name: neovim
+        state: present
+
+    - name: Check if nvim config exists
+      stat:
+        path: "/root/.config/nvim"
+      register: nvim_config
+
+    - name: Install nvim config
+      shell: |
+        git clone https://github.com/NvChad/NvChad ~/.config/nvim --depth 1
+        nvim
+      when: nvim_config.stat.exists == False
+
+  handlers:
+    - name: Start and enable docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    #============================================
+    #  PRE COMMIT
+    #============================================
+    - name: Download pip script
+      get_url:
+        url: https://bootstrap.pypa.io/get-pip.py
+        dest: "/tmp/get-pip.py"
+
+    - name: Install pip and pre-commit
+      shell: |
+        python3 /tmp/get-pip.py
+        pip install pre-commit
+
+    #============================================
+    #  TF DOCS
+    #============================================
+    - name: Download tf docs binary
+      get_url:
+        url: https://github.com/terraform-docs/terraform-docs/releases/download/v0.16.0/terraform-docs-v0.16.0-linux-amd64.tar.gz
+        dest: "/tmp/terraform-docs-v0.16.0-linux-amd64.tar.gz"
+
+    - name: Unarchive tfdocs binary
+      unarchive:
+        src: "/tmp/terraform-docs-v0.16.0-linux-amd64.tar.gz"
+        dest: "/usr/local/bin/"
+        creates: "/usr/local/bin/terraform-docs"
+        remote_src: true
+
+    #============================================
+    #  TF LINT
+    #============================================
+    - name: Install tf lint
+      shell: |
+        curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+    #============================================
+    #  HELM
+    #============================================
+    - name: Download helm script
+      get_url:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: "/tmp/get_helm.sh"
+
+    - name: Install helm
+      shell: |
+        chmod 700 /tmp/get_helm.sh
+        sh /tmp/get_helm.sh
+
+    #============================================
+    #  OPEN VPN
+    #============================================
+    - name: Install OpenVPN
+      apt:
+        name: openvpn
+        state: present
+
+    #============================================
+    #  INSTALL GOOGLE CLOUD
+    #============================================
+    - name: Download Google Cloud CLI
+      get_url:
+        url: "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-457.0.0-linux-x86_64.tar.gz"
+        dest: "/tmp/google-cloud-cli-457.0.0-linux-x86_64.tar.gz"
+
+    - name: Unarchive Google Cloud CLI
+      unarchive:
+        src: "/tmp/google-cloud-cli-457.0.0-linux-x86_64.tar.gz"
+        dest: "/tmp/"
+        remote_src: true
+
+    - name: Install Google Cloud SDK
+      shell: |
+        chmod 700 /tmp/google-cloud-sdk/install.sh
+        /tmp/google-cloud-sdk/install.sh
